@@ -48,8 +48,8 @@ Serangan *supply-chain* makin banyak menargetkan developer secara langsung. Pela
 Jalankan skrip instalasi universal:
 
 ```bash
-git clone https://github.com/harundev0/safe-repo-triage.git
-cd safe-repo-triage
+git clone https://github.com/harundev0/safe-repo-guard.git
+cd safe-repo-guard
 ./install.sh
 ```
 

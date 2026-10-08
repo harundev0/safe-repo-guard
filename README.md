@@ -57,8 +57,8 @@ Modern supply-chain attacks increasingly target developers directly. Attackers d
 Run the universal installer:
 
 ```bash
-git clone https://github.com/harundev0/safe-repo-triage.git
-cd safe-repo-triage
+git clone https://github.com/harundev0/safe-repo-guard.git
+cd safe-repo-guard
 ./install.sh
 ```
 
@@ -146,7 +146,7 @@ grep -E -r '(curl|wget|base64 -d|Invoke-WebRequest)' .git/
 ## 📁 Repository Structure
 
 ```text
-safe-repo-triage/
+safe-repo-guard/
 ├── README.md               # English documentation
 ├── README_ID.md            # Indonesian documentation
 ├── LICENSE                 # MIT License
@@ -170,7 +170,7 @@ safe-repo-triage/
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/harundev0/safe-repo-triage/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/harundev0/safe-repo-guard/issues).
 
 ## 📄 License
 
