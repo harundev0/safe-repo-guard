@@ -29,16 +29,19 @@ Serangan *supply-chain* makin banyak menargetkan developer secara langsung. Pela
 
 ## 💡 Apa yang Disediakan Safe Repo Guard?
 
-1. **Scanner CLI Zero-Execution (`safe-repo-scan`)**
-   - Skrip mandiri (tersedia versi Python 3 & Bash murni) yang mengaudit repositori **tanpa pernah menjalankan perintah `git` atau eksekusi build apapun**.
+1. **Mandiri & Bebas Dependensi (Bisa Digunakan Tanpa AI / Tanpa Hermes Agent)**
+   - Anda **TIDAK harus memiliki Hermes Agent** atau AI apapun untuk menggunakan perlindungan ini!
+   - Cukup jalankan scanner CLI mandiri (`safe-repo-scan` versi Python atau `safe-repo-scan-sh` versi Bash) langsung dari terminal. Sangat cepat (hitungan milidetik), tanpa API key, dan tanpa dependensi rumit.
+2. **Scanner CLI Zero-Execution (`safe-repo-scan`)**
+   - Skrip mandiri yang mengaudit repositori **tanpa pernah menjalankan perintah `git` atau eksekusi build apapun**.
    - Menganalisis `.git/hooks`, `.git/config`, `package.json`, script shell, dan dokumen pendukung dari indikasi prompt injection.
-2. **Aturan Siap Pakai untuk Semua AI Coding Agent**
+3. **Aturan Siap Pakai untuk Semua AI Coding Agent**
    - **Claude Code**: `rules/CLAUDE.md`
    - **OpenCode & Codex**: `rules/AGENTS.md`
    - **Google Gemini / Antigravity**: `rules/GEMINI.md`
    - **Cursor IDE**: `rules/.cursorrules` dan `rules/cursor-rule.mdc`
    - **Windsurf Cascade**: `rules/.windsurfrules`
-3. **Universal Agent Skill (`safe-repo-review`)**
+4. **Universal Agent Skill (`safe-repo-review`)**
    - Kompatibel dengan OpenCode dan ekosistem agent skill lainnya.
 
 ---

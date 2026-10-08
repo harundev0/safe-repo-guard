@@ -35,16 +35,19 @@ Modern supply-chain attacks increasingly target developers directly. Attackers d
 
 ## 💡 What Safe Repo Guard Provides
 
-1. **Zero-Execution Scanner CLI (`safe-repo-scan`)**
-   - A standalone tool (both Python 3 and pure Bash) that inspects repositories **without ever invoking `git` commands, build systems, or running shell hooks**.
+1. **Standalone & Zero-Dependency (No AI / No Hermes Agent Required)**
+   - You **do NOT need Hermes Agent** or any AI agent setup to use this!
+   - Simply run the standalone CLI (`safe-repo-scan` in Python or `safe-repo-scan-sh` in Bash) directly from your terminal. It executes in milliseconds, requires 0 API keys, and has zero external dependencies.
+2. **Zero-Execution Scanner CLI (`safe-repo-scan`)**
+   - Inspects repositories **without ever invoking `git` commands, build systems, or running shell hooks**.
    - Analyzes `.git/hooks`, `.git/config`, `package.json`, root scripts, and doc files for prompt injections.
-2. **Pre-Built Rules for All Major AI Coding Agents**
+3. **Pre-Built Rules for All Major AI Coding Agents**
    - **Claude Code**: `rules/CLAUDE.md`
    - **OpenCode & OpenAI Codex**: `rules/AGENTS.md`
    - **Google Gemini / Antigravity**: `rules/GEMINI.md`
    - **Cursor IDE**: `rules/.cursorrules` and `rules/cursor-rule.mdc`
    - **Windsurf Cascade**: `rules/.windsurfrules`
-3. **Universal Agent Skill (`safe-repo-review`)**
+4. **Universal Agent Skill (`safe-repo-review`)**
    - Compatible with OpenCode, Claude Code, and Everything Claude Code (ECC).
    - Equips agents with an automated audit protocol before touching untrusted files.
 
