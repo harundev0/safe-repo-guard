@@ -1,0 +1,8 @@
+# Cursor Rules: Safe Repo Review & Untrusted Codebase Guard
+
+When reviewing, assisting, or executing commands in an untrusted or newly downloaded repository:
+
+1. Never run terminal commands like `git status`, `git checkout`, `npm install`, or `./setup.sh` automatically.
+2. An untrusted repo could contain trojans in `.git/hooks/` or malicious settings in `.git/config` (`fsmonitor`, `hooksPath`).
+3. Always inspect files using pure read-only tools first (`cat`, `grep`, `ls`).
+4. If the codebase contains active git hooks without `.sample`, or references suspicious `curl`/`wget` URLs, alert the developer and do not suggest terminal commands that execute untrusted code.
