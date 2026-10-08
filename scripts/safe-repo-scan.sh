@@ -1,10 +1,23 @@
 #!/usr/bin/env bash
-# safe-repo-scan.sh - Zero-Execution Bash Scanner for Untrusted Repos
-# Checks .git/hooks, .git/config, and lifecycle scripts WITHOUT executing git or project files.
+# safe-repo-scan.sh - Zero-Execution Bash Scanner & Neutralizer for Untrusted Repos
+# Checks and can neutralize .git/hooks, .git/config, and lifecycle scripts WITHOUT executing git or project files.
 
 set -euo pipefail
 
-TARGET="${1:-.}"
+TARGET="."
+DISARM=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --disarm|--clean)
+            DISARM=1
+            ;;
+        *)
+            TARGET="$arg"
+            ;;
+    esac
+done
+
 TARGET="$(cd "$TARGET" 2>/dev/null && pwd || echo "$TARGET")"
 
 RED='\033[0;31m'
@@ -88,6 +101,32 @@ for doc in "$TARGET"/README* "$TARGET"/INSTRUCTIONS* "$TARGET"/*.md; do
     fi
 done
 
+# Disarm if requested
+if [ "$DISARM" -eq 1 ]; then
+    echo -e "\n========================================================================"
+    echo " 🧹 CLEANING & DISARMING REPOSITORY..."
+    echo "========================================================================"
+    
+    # 1. Quarantine active hooks
+    if [ -d "$TARGET/.git/hooks" ]; then
+        mkdir -p "$TARGET/.git/hooks_quarantine"
+        for hook in $(find "$TARGET/.git/hooks" -maxdepth 1 -type f ! -name "*.sample" 2>/dev/null || true); do
+            mv "$hook" "$TARGET/.git/hooks_quarantine/$(basename "$hook").disabled_$(date +%s)"
+            echo " ✔️  Quarantined hook: $(basename "$hook")"
+        done
+    fi
+
+    # 2. Clean .git/config
+    if [ -f "$TARGET/.git/config" ]; then
+        cp "$TARGET/.git/config" "$TARGET/.git/config.backup"
+        sed -i -E '/(hookpath|fsmonitor|pager|editor)[[:space:]]*=/d' "$TARGET/.git/config"
+        echo " ✔️  Sanitized .git/config (backup at .git/config.backup)"
+    fi
+
+    echo -e "\n${GREEN}✅ REPOSITORY DISARMED: Threats neutralized and quarantined.${NC}"
+    exit 0
+fi
+
 echo "========================================================================"
 if [ "$FOUND_ISSUES" -eq 0 ]; then
     echo -e "${GREEN}✅ SAFE: No obvious malicious git hooks, config hijacks, or prompts found.${NC}"
@@ -95,5 +134,7 @@ if [ "$FOUND_ISSUES" -eq 0 ]; then
 else
     echo -e "${RED}❌ AUDIT FAILED: $FOUND_ISSUES issue(s) detected.${NC}"
     echo "DO NOT run 'git status', 'git checkout', 'npm install', or build scripts in this repo!"
+    echo "👉 To neutralize and clean threats automatically, run:"
+    echo "   safe-repo-scan-sh $TARGET --disarm"
 fi
 echo "========================================================================"

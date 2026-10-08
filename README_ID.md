@@ -82,13 +82,82 @@ safe-repo-scan-sh /path/ke/repo-asing
 
 ---
 
-### 2. Gunakan Bersama AI Coding Agent
+### 2. Membersihkan & Menetralisir Repo Berbahaya (`--disarm`)
+
+Jika scanner mendeteksi ancaman di dalam repositori dan Anda ingin membersihkannya agar aman dibuka:
+
+```bash
+# Netralisir semua git hook jahat dan bersihkan config:
+safe-repo-scan /path/ke/repo-asing --disarm
+
+# Atau menggunakan versi Bash:
+safe-repo-scan-sh /path/ke/repo-asing --disarm
+```
+
+**Apa yang dilakukan `--disarm`?**
+* **Mengarantina Git Hooks:** Memindahkan semua hook aktif ke `.git/hooks_quarantine/` dan menonaktifkan izin eksekusinya.
+* **Membersihkan `.git/config`:** Menghapus parameter bajakan (`fsmonitor`, `hooksPath`, `pager`) sambil mencadangkan config lama ke `.git/config.backup`.
+* **Menonaktifkan Lifecycle Scripts:** Mengubah script otomatis `preinstall` / `postinstall` di `package.json` menjadi `disarmed_*` agar tidak berjalan saat `npm install`.
+
+---
+
+### 3. Gunakan Bersama AI Coding Agent
 
 Cukup instruksikan AI Anda:
 
-> *"Tolong audit repo ini dengan safe-repo-review sebelum melakukan apa-apa. Jangan jalankan git status atau npm install."*
+> *"Tolong audit repo ini dengan safe-repo-review sebelum melakukan apa-apa. Jika ada yang berbahaya, bersihkan dengan --disarm."*
 
 AI Agent akan secara otomatis menggunakan prosedur *Read-Only* murni (`cat`, `grep`, `ls`) tanpa mengeksekusi skrip apapun di dalam repositori.
+
+---
+
+## 🆘 Emergency Playbook: Jika Sudah Terlanjur Terinfeksi / Terpapar
+
+Jika Anda **sudah terlanjur** menjalankan `git status`, `git checkout`, `npm install`, atau membuka repo mencurigakan:
+
+### Langkah 1: Putuskan Koneksi Internet Segera
+Cabut kabel LAN atau matikan Wi-Fi komputer Anda. Hal ini memutus komunikasi trojan ke server C2 (*Command and Control*) dan mencegah pencurian data (ekskursi token `.env` / SSH key).
+
+### Langkah 2: Matikan Proses Mencurigakan
+Buka terminal dan periksa proses yang sedang berjalan atau mendengarkan koneksi:
+```bash
+# Periksa proses shell atau download yang berjalan di latar belakang:
+ps aux | grep -E '(curl|wget|nc|bash -i|python -c)'
+
+# Periksa koneksi jaringan aktif:
+lsof -i -P -n
+```
+Jika menemukan proses mencurigakan, bunuh segera:
+```bash
+kill -9 <PID>
+```
+
+### Langkah 3: Bersihkan Repositori
+Jalankan neutralizer dari Safe Repo Guard atau hapus foldernya:
+```bash
+safe-repo-scan /path/ke/repo-mencurigakan --disarm
+# atau hapus folder repo secara permanen jika tidak dibutuhkan:
+rm -rf /path/ke/repo-mencurigakan
+```
+
+### Langkah 4: Periksa Pintu Belakang SSH
+Periksa apakah ada kunci publik penyusup yang dimasukkan ke komputer Anda:
+```bash
+cat ~/.ssh/authorized_keys
+```
+Hapus baris kunci asing yang tidak Anda kenali.
+
+### Langkah 5: Rotasi Kredensial Kritis
+Segera gunakan perangkat lain yang aman (misalnya smartphone) untuk mengganti:
+- Personal Access Token GitHub / GitLab.
+- API Key penting yang pernah tersimpan di `.env` (OpenAI, AWS, GCP, Stripe, Database).
+- Password akun penting.
+
+### Langkah 6: Pindai Sistem dengan ClamAV
+Jika sistem Anda memiliki ClamAV (seperti di Ubuntu/Debian):
+```bash
+clamscan -r --bell -i ~/
+```
 
 ---
 

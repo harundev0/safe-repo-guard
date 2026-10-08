@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-safe-repo-scan: Zero-Execution Security Scanner for Untrusted Git Repositories & Archives.
+safe-repo-scan: Zero-Execution Security Scanner & Neutralizer for Untrusted Git Repositories.
 Inspects repos safely without invoking git commands, build systems, or running shell hooks.
+Can also disarm/clean malicious vectors with --disarm.
 """
 
 import sys
 import os
 import re
 import json
+import shutil
 import argparse
 from pathlib import Path
+from datetime import datetime
 
 DANGEROUS_HOOK_NAMES = [
     "post-checkout", "pre-commit", "pre-push", "post-commit",
@@ -43,6 +46,7 @@ class SafeRepoScanner:
         self.target_dir = Path(target_dir).resolve()
         self.findings = []
         self.risk_level = "CLEAN" # CLEAN, LOW, MEDIUM, CRITICAL
+        self.remediated_items = []
 
     def add_finding(self, severity: str, category: str, message: str, file_path: str = None, details: str = None):
         self.findings.append({
@@ -66,7 +70,6 @@ class SafeRepoScanner:
 
         for item in hooks_dir.iterdir():
             if item.is_file() and not item.name.endswith(".sample"):
-                # Active hook detected!
                 try:
                     content = item.read_text(encoding="utf-8", errors="ignore")
                     matched_patterns = []
@@ -124,7 +127,6 @@ class SafeRepoScanner:
             )
 
     def scan_build_and_lifecycle_scripts(self):
-        # 1. Node.js package.json
         pkg_json = self.target_dir / "package.json"
         if pkg_json.is_file():
             try:
@@ -148,7 +150,6 @@ class SafeRepoScanner:
             except Exception:
                 pass
 
-        # 2. Makefiles / Shell scripts in root
         for script_file in self.target_dir.glob("*.sh"):
             try:
                 content = script_file.read_text(encoding="utf-8", errors="ignore")
@@ -166,7 +167,7 @@ class SafeRepoScanner:
 
     def scan_prompt_injection(self):
         doc_files = list(self.target_dir.glob("README*")) + list(self.target_dir.glob("INSTRUCTIONS*")) + list(self.target_dir.glob("*.md"))
-        for doc in doc_files[:10]: # Check primary docs
+        for doc in doc_files[:10]:
             try:
                 content = doc.read_text(encoding="utf-8", errors="ignore")
                 for pat in PROMPT_INJECTION_INDICATORS:
@@ -182,6 +183,66 @@ class SafeRepoScanner:
             except Exception:
                 pass
 
+    def disarm(self):
+        """Neutralizes and cleans malicious vectors in the repository."""
+        # 1. Quarantine active Git Hooks
+        hooks_dir = self.target_dir / ".git" / "hooks"
+        if hooks_dir.exists():
+            quarantine_dir = self.target_dir / ".git" / "hooks_quarantine"
+            quarantine_dir.mkdir(exist_ok=True)
+            for item in hooks_dir.iterdir():
+                if item.is_file() and not item.name.endswith(".sample"):
+                    dest = quarantine_dir / f"{item.name}.disabled_{int(datetime.now().timestamp())}"
+                    shutil.move(str(item), str(dest))
+                    self.remediated_items.append(f"Moved active hook '{item.name}' -> '{dest.name}'")
+
+        # 2. Sanitize .git/config
+        config_file = self.target_dir / ".git" / "config"
+        if config_file.is_file():
+            try:
+                backup = config_file.with_suffix(".backup")
+                shutil.copy2(str(config_file), str(backup))
+                content = config_file.read_text(encoding="utf-8", errors="ignore")
+                clean_lines = []
+                stripped_keys = []
+                for line in content.splitlines():
+                    line_lower = line.lower()
+                    skip = False
+                    for key in SUSPICIOUS_CONFIG_KEYS:
+                        if key in line_lower and "=" in line:
+                            stripped_keys.append(line.strip())
+                            skip = True
+                            break
+                    if not skip:
+                        clean_lines.append(line)
+                
+                if stripped_keys:
+                    config_file.write_text("\n".join(clean_lines) + "\n", encoding="utf-8")
+                    self.remediated_items.append(f"Sanitized .git/config (Removed {len(stripped_keys)} dangerous entries, backup saved to .git/config.backup)")
+            except Exception as e:
+                self.remediated_items.append(f"Failed to sanitize .git/config: {e}")
+
+        # 3. Disarm npm lifecycle scripts in package.json (replaces preinstall/postinstall with disarmed_*)
+        pkg_json = self.target_dir / "package.json"
+        if pkg_json.is_file():
+            try:
+                data = json.loads(pkg_json.read_text(encoding="utf-8", errors="ignore"))
+                scripts = data.get("scripts", {})
+                modified = False
+                for hook in ["preinstall", "install", "postinstall", "prepare", "prepack"]:
+                    if hook in scripts:
+                        scripts[f"disarmed_{hook}"] = scripts.pop(hook)
+                        modified = True
+                        self.remediated_items.append(f"Disarmed npm script '{hook}' -> 'disarmed_{hook}' in package.json")
+                if modified:
+                    backup_pkg = pkg_json.with_suffix(".backup")
+                    shutil.copy2(str(pkg_json), str(backup_pkg))
+                    pkg_json.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            except Exception as e:
+                self.remediated_items.append(f"Failed to disarm package.json: {e}")
+
+        return self.remediated_items
+
     def scan(self):
         if not self.target_dir.exists():
             print(f"Error: Target directory '{self.target_dir}' does not exist.")
@@ -194,24 +255,27 @@ class SafeRepoScanner:
         return self.findings
 
 def main():
-    parser = argparse.ArgumentParser(description="Zero-Execution Security Scanner for Untrusted Repositories")
+    parser = argparse.ArgumentParser(description="Zero-Execution Security Scanner & Neutralizer for Untrusted Repositories")
     parser.add_argument("path", nargs="?", default=".", help="Path to repository or directory to scan (default: current dir)")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
+    parser.add_argument("--disarm", "--clean", action="store_true", dest="disarm", help="Neutralize and quarantine detected threats (disarm hooks, clean config, neutralize lifecycle scripts)")
     args = parser.parse_args()
 
     scanner = SafeRepoScanner(args.path)
     findings = scanner.scan()
 
     if args.json:
-        print(json.dumps({
+        result = {
             "target": str(scanner.target_dir),
             "risk_level": scanner.risk_level,
             "findings_count": len(findings),
             "findings": findings
-        }, indent=2))
+        }
+        if args.disarm:
+            result["disarmed_actions"] = scanner.disarm()
+        print(json.dumps(result, indent=2))
         return
 
-    # Colored / Formatted text output
     colors = {
         "CRITICAL": "\033[91m[CRITICAL]\033[0m",
         "HIGH": "\033[93m[HIGH]\033[0m",
@@ -242,8 +306,24 @@ def main():
             print(f"   Details : {f['details']}")
         print()
 
-    if scanner.risk_level in ["CRITICAL", "HIGH"]:
-        print("\033[91m❌ DO NOT EXECUTE 'git checkout', 'git status', 'npm install', OR SCRIPTS IN THIS REPO!\033[0m\n")
+    if args.disarm:
+        print("=" * 70)
+        print(" 🧹 CLEANING & DISARMING REPOSITORY...")
+        print("=" * 70)
+        actions = scanner.disarm()
+        if actions:
+            for act in actions:
+                print(f" ✔️  {act}")
+            print("\n✅ REPOSITORY DISARMED: Threats neutralized and quarantined.")
+            print("The repository is now safe from automatic trigger execution.")
+        else:
+            print("No actionable hooks or config modifications needed.")
+        print()
+    else:
+        if scanner.risk_level in ["CRITICAL", "HIGH"]:
+            print("\033[91m❌ DO NOT EXECUTE 'git checkout', 'git status', 'npm install', OR SCRIPTS IN THIS REPO!\033[0m")
+            print("👉 Run with --disarm to automatically quarantine hooks and clean configuration:")
+            print(f"   safe-repo-scan {scanner.target_dir} --disarm\n")
 
 if __name__ == "__main__":
     main()
